@@ -187,6 +187,19 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
   const displayFen = currentViewedGame.fen();
 
+  const viewedCapturedPieces = useMemo(() => {
+    const white: string[] = [];
+    const black: string[] = [];
+    const history = currentViewedGame.history({ verbose: true }) as any[];
+    for (const move of history) {
+      if (move.captured) {
+        if (move.color === 'w') white.push(move.captured);
+        else black.push(move.captured);
+      }
+    }
+    return { white, black };
+  }, [currentViewedGame]);
+
   // Link management
   useEffect(() => {
     setInviteUrl(window.location.href);
@@ -374,20 +387,34 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   // Square highlights
   const dynamicSquareStyles = useMemo(() => {
     const sqStyles: Record<string, React.CSSProperties> = {};
-    if (selectedSquare) {
+
+    // Highlight last move
+    const history = currentViewedGame.history({ verbose: true }) as any[];
+    if (history.length > 0) {
+      const lastMove = history[history.length - 1];
+      sqStyles[lastMove.from] = { backgroundColor: 'rgba(212, 175, 55, 0.4)' };
+      sqStyles[lastMove.to] = { backgroundColor: 'rgba(212, 175, 55, 0.4)' };
+    }
+
+    if (selectedSquare && reviewIndex === null) {
       const pieceOnSquare = currentViewedGame.get(selectedSquare as Square);
       const currentTurn = currentViewedGame.turn();
       if (pieceOnSquare && pieceOnSquare.color === currentTurn) {
-        sqStyles[selectedSquare] = { backgroundColor: 'rgba(212, 175, 55, 0.4)' };
+        sqStyles[selectedSquare] = { 
+          ...sqStyles[selectedSquare], 
+          backgroundColor: 'rgba(212, 175, 55, 0.4)' 
+        };
         const moves = currentViewedGame.moves({ square: selectedSquare as Square, verbose: true });
         for (const move of moves) {
           if (move.captured) {
             sqStyles[move.to] = {
+              ...sqStyles[move.to],
               boxShadow: 'inset 0 0 0 4px rgba(244, 67, 54, 0.7)',
               borderRadius: 0
             };
           } else {
             sqStyles[move.to] = {
+              ...sqStyles[move.to],
               backgroundImage: 'radial-gradient(circle, var(--highlight-move-glow) 24%, transparent 25%)',
             };
           }
@@ -413,7 +440,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
       }
     }
     return sqStyles;
-  }, [selectedSquare, currentViewedGame, hoveredSquare]);
+  }, [selectedSquare, currentViewedGame, hoveredSquare, reviewIndex]);
 
   const oppColor = playerColor === 'white' ? 'black' : playerColor === 'black' ? 'white' : 'black';
 
@@ -461,6 +488,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
       },
       onSquareClick: ({ square }: any) => handleSquareClick({ square, piece: game.get(square as Square) }),
       onPieceDragBegin: () => {
+        if (reviewIndex !== null) return;
         setIsDragging(true);
       },
       onPieceDragEnd: () => {
@@ -472,7 +500,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         });
       },
       onPieceDrag: ({ square }: any) => {
-        if (!square || !opponentConnectedRef.current) return;
+        if (!square || !opponentConnectedRef.current || reviewIndex !== null) return;
 
         // Move caching
         const currentTurn = turnRef.current;
@@ -491,7 +519,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         }
       },
       onMouseOverSquare: ({ square }: any) => {
-        if (!square) return;
+        if (!square || reviewIndex !== null) return;
 
         // Visual feedback logic
         if (isDragging || selectedSquare) {
@@ -529,7 +557,16 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
       animationDurationInMs: 200,
     };
     return config;
-  }, [displayFen, playerColor, boardWidth, boardTheme, customGreenPieces, onDrop, handleSquareClick, game, opponentConnectedRef, selectedSquare, dynamicSquareStyles, activeTheme, isDragging]);
+  }, [displayFen, playerColor, boardWidth, boardTheme, customGreenPieces, onDrop, handleSquareClick, game, opponentConnectedRef, selectedSquare, dynamicSquareStyles, activeTheme, isDragging, reviewIndex]);
+
+  // Clean up ghost hovers on mobile touch devices
+  useEffect(() => {
+    if (!selectedSquare && !isDragging) {
+      document.querySelectorAll('.drag-hover-move, .drag-hover-capture').forEach(el => {
+        el.classList.remove('drag-hover-move', 'drag-hover-capture');
+      });
+    }
+  }, [selectedSquare, isDragging]);
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -764,7 +801,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
             {/* Middle: Board */}
             <section style={{ ...styles.boardContainer, width: boardWidth }} data-board-theme={boardTheme}>
               <div style={{ ...styles.boardHeader, maxWidth: boardWidth }}>
-                <PlayerBox role={oppColor} turn={turn} viewerRole={playerColor} isOpponent capturedPieces={oppColor === 'white' ? capturedPieces.white : capturedPieces.black} themeColor={activeTheme.box} />
+                <PlayerBox role={oppColor} turn={turn} viewerRole={playerColor} isOpponent capturedPieces={oppColor === 'white' ? viewedCapturedPieces.white : viewedCapturedPieces.black} themeColor={activeTheme.box} />
               </div>
 
               <div style={{ ...styles.boardWrapper, width: boardWidth, height: boardWidth, position: 'relative' }}>
@@ -806,7 +843,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
               </div>
 
               <div style={{ ...styles.boardFooter, width: boardWidth }}>
-                <PlayerBox role={playerColor === 'spectator' ? 'white' : playerColor} turn={turn} viewerRole={playerColor} capturedPieces={playerColor === 'white' ? capturedPieces.white : (playerColor === 'black' ? capturedPieces.black : capturedPieces.white)} themeColor={activeTheme.box} />
+                <PlayerBox role={playerColor === 'spectator' ? 'white' : playerColor} turn={turn} viewerRole={playerColor} capturedPieces={playerColor === 'white' ? viewedCapturedPieces.white : (playerColor === 'black' ? viewedCapturedPieces.black : viewedCapturedPieces.white)} themeColor={activeTheme.box} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%', maxWidth: boardWidth, marginTop: '-8px' }}>
@@ -912,10 +949,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px' }}>
                     <button onClick={() => setConfirmAction(confirmAction === 'resign' ? null : 'resign')} disabled={isGameOver || playerColor === 'spectator' || drawPending || drawRequest || takebackPending || takebackRequest || confirmAction === 'draw'} style={{ ...styles.controlBtn, background: confirmAction === 'resign' ? 'rgba(244, 67, 54, 0.2)' : styles.controlBtn.background, borderColor: confirmAction === 'resign' ? '#f44336' : 'var(--glass-border)', opacity: (isGameOver || playerColor === 'spectator' || drawPending || drawRequest || takebackPending || takebackRequest || confirmAction === 'draw') ? 0.3 : 1 }} title="Resign"><Flag size={20} /></button>
                     <button onClick={() => { if (drawPending) cancelDraw(); else setConfirmAction(confirmAction === 'draw' ? null : 'draw'); }} disabled={isGameOver || playerColor === 'spectator' || takebackPending || takebackRequest || confirmAction === 'resign'} style={{ ...styles.controlBtn, background: (confirmAction === 'draw' || drawPending) ? 'rgba(212, 175, 55, 0.4)' : styles.controlBtn.background, borderColor: (confirmAction === 'draw' || drawPending) ? 'var(--primary)' : 'var(--glass-border)', opacity: (isGameOver || playerColor === 'spectator' || takebackPending || takebackRequest || confirmAction === 'resign') ? 0.3 : 1 }} title={drawPending ? "Cancel Offer" : "Suggest Draw"}>{drawPending ? <X size={20} /> : <Handshake size={20} />}</button>
-                    <button onClick={() => setReviewIndex(prev => Math.max(0, (prev ?? gameHistory.length) - 1))} disabled={reviewIndex === 0} style={{ ...styles.controlBtn, opacity: reviewIndex === 0 ? 0.3 : 1 }} title="Previous Move"><ChevronLeft size={20} /></button>
+                    <button onClick={() => setReviewIndex(prev => Math.max(0, (prev ?? gameHistory.length) - 1))} disabled={reviewIndex === 0 || gameHistory.length === 0} style={{ ...styles.controlBtn, opacity: (reviewIndex === 0 || gameHistory.length === 0) ? 0.3 : 1 }} title="Previous Move"><ChevronLeft size={20} /></button>
                     <button onClick={() => setReviewIndex(prev => {
                       const next = (prev ?? gameHistory.length) + 1;
-                      return next > gameHistory.length ? null : next;
+                      return next >= gameHistory.length ? null : next;
                     })} disabled={reviewIndex === null} style={{ ...styles.controlBtn, opacity: reviewIndex === null ? 0.3 : 1 }} title="Next Move"><ChevronRight size={20} /></button>
                     <button onClick={() => { if (takebackPending) cancelTakeback(); else requestTakeback(); }} disabled={playerColor === 'spectator' || gameHistory.length === 0 || drawPending || drawRequest || confirmAction === 'draw' || confirmAction === 'resign'} style={{ ...styles.controlBtn, background: takebackPending ? 'rgba(244, 67, 54, 0.2)' : styles.controlBtn.background, color: takebackPending ? '#f44336' : '#fff', opacity: (playerColor === 'spectator' || gameHistory.length === 0 || drawPending || drawRequest || confirmAction === 'draw' || confirmAction === 'resign') ? 0.3 : 1 }} title={takebackPending ? 'Cancel Request' : 'Request Takeback'}>{takebackPending ? <X size={20} /> : <Undo2 size={20} />}</button>
                   </div>
@@ -952,7 +989,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
             {/* Board Section */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', width: '100%' }}>
-              <PlayerBox role={oppColor} turn={turn} viewerRole={playerColor} isOpponent capturedPieces={oppColor === 'white' ? capturedPieces.white : capturedPieces.black} themeColor={activeTheme.box} />
+              <PlayerBox role={oppColor} turn={turn} viewerRole={playerColor} isOpponent capturedPieces={oppColor === 'white' ? viewedCapturedPieces.white : viewedCapturedPieces.black} themeColor={activeTheme.box} />
 
               <div style={{ ...styles.boardWrapper, width: boardWidth, height: boardWidth, position: 'relative' }}>
                 <Chessboard options={chessboardOptions} />
@@ -992,7 +1029,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                 })()}
               </div>
 
-              <PlayerBox role={playerColor === 'spectator' ? 'white' : playerColor} turn={turn} viewerRole={playerColor} capturedPieces={playerColor === 'white' ? capturedPieces.white : (playerColor === 'black' ? capturedPieces.black : capturedPieces.white)} themeColor={activeTheme.box} />
+              <PlayerBox role={playerColor === 'spectator' ? 'white' : playerColor} turn={turn} viewerRole={playerColor} capturedPieces={playerColor === 'white' ? viewedCapturedPieces.white : (playerColor === 'black' ? viewedCapturedPieces.black : viewedCapturedPieces.white)} themeColor={activeTheme.box} />
             </div>
 
             {/* Match Link (Mobile) */}
@@ -1075,11 +1112,11 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                   >
                     {drawPending ? <X size={18} /> : <Handshake size={18} />}
                   </button>
-                  <button onClick={() => setReviewIndex(prev => Math.max(0, (prev ?? gameHistory.length) - 1))} disabled={reviewIndex === 0} style={{ ...styles.controlBtn, height: '36px', opacity: reviewIndex === 0 ? 0.3 : 1 }} title="Prev"><ChevronLeft size={18} /></button>
+                  <button onClick={() => setReviewIndex(prev => Math.max(0, (prev ?? gameHistory.length) - 1))} disabled={reviewIndex === 0 || gameHistory.length === 0} style={{ ...styles.controlBtn, height: '36px', opacity: (reviewIndex === 0 || gameHistory.length === 0) ? 0.3 : 1 }} title="Prev"><ChevronLeft size={18} /></button>
                   <button
                     onClick={() => setReviewIndex(prev => {
                       const next = (prev ?? gameHistory.length) + 1;
-                      return next > gameHistory.length ? null : next;
+                      return next >= gameHistory.length ? null : next;
                     })}
                     disabled={reviewIndex === null}
                     style={{ ...styles.controlBtn, height: '36px', opacity: reviewIndex === null ? 0.3 : 1 }}
