@@ -5,13 +5,14 @@
 A premium, beautifully animated web application designed for seamless online chess play. Built with modern UI principles and real-time synchronization, it allows you to play with anyone, anywhere, instantly by sharing a game link. No login or signup required.
 
 ## 📖 How to Use the Service
-1. **Start a Game**: Click the "Play with Friend" button on the home page.
-2. **Share the Link**: Copy the unique game URL and send it to your opponent.
+1. **Create or Join**: Use "Create a Game" on the home page to start a private match, or hop into one of the live **Rooms (1-4)** instantly.
+2. **Share the Link**: If you created a private match, copy the unique game URL and send it to your opponent.
 3. **Make Your Moves**: Drag and drop pieces or click to move. The board scales perfectly to any screen size.
 4. **Chat & Interact**: Communicate with your opponent using the built-in real-time chat.
 5. **Analyze & Review**: Use the history panel to review past moves or navigate through the game state during play.
 
 ## ✨ Features
+- **Live Rooms**: Instantly join active game rooms directly from the home page, complete with live player presence counters.
 - **Real-Time Multiplayer**: Instant, zero-latency move synchronization powered by Ably Realtime.
 - **Hybrid Highlighting System**: A high-performance visual system with square-edged highlights for moves and captures.
 - **Dynamic Themes**: Choose between professional 'Brown' and 'Green' board themes with custom-tailored piece sets.

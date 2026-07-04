@@ -147,10 +147,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
     padding: '1.5rem',
     background: 'radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 100%)',
-    overflow: 'hidden',
+    overflowY: 'auto',
   },
   hero: {
     textAlign: 'center',
@@ -160,6 +159,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    margin: 'auto',
   },
   title: {
     fontSize: 'clamp(1.8rem, 10vw, 4.5rem)',
