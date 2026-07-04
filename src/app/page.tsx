@@ -4,11 +4,24 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { nanoid } from 'nanoid';
 import { Crown, Cpu, Users, ChevronRight } from 'lucide-react';
+import { useRoomsPresence } from '@/hooks/useRoomsPresence';
 
 export default function LandingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedColor, setSelectedColor] = useState<'white' | 'black' | 'random'>('white');
+  
+  const roomIds = ['1', '2', '3', '4'];
+  const roomCounts = useRoomsPresence(roomIds);
+
+  const joinRoom = (roomId: string) => {
+    let finalColor = selectedColor;
+    if (selectedColor === 'random') {
+      finalColor = Math.random() > 0.5 ? 'white' : 'black';
+    }
+    localStorage.setItem(`chess-game-${roomId}-role`, finalColor);
+    router.push(`/game/${roomId}`);
+  };
 
   const createGame = () => {
     setLoading(true);
@@ -44,39 +57,78 @@ export default function LandingPage() {
         </div>
         <p style={styles.subtitle}>Play chess online for free with anyone by sharing game link. No login/signup required.</p>
 
-        <div className="glass" style={styles.card}>
-          <h2 style={styles.cardTitle}>Create a Game</h2>
+        <div className="layout-container">
+          <div className="glass" style={{ ...styles.card, marginBottom: 0 }}>
+            <h2 style={styles.cardTitle}>Create a Game</h2>
 
-          <div style={styles.colorPicker}>
+            <div style={styles.colorPicker}>
+              <button
+                onClick={() => setSelectedColor('white')}
+                style={{ ...styles.colorBtn, ...(selectedColor === 'white' ? styles.colorBtnActive : {}) }}
+              >
+                White
+              </button>
+              <button
+                onClick={() => setSelectedColor('random')}
+                style={{ ...styles.colorBtn, ...(selectedColor === 'random' ? styles.colorBtnActive : {}) }}
+              >
+                Random
+              </button>
+              <button
+                onClick={() => setSelectedColor('black')}
+                style={{ ...styles.colorBtn, ...(selectedColor === 'black' ? styles.colorBtnActive : {}) }}
+              >
+                Black
+              </button>
+            </div>
+
             <button
-              onClick={() => setSelectedColor('white')}
-              style={{ ...styles.colorBtn, ...(selectedColor === 'white' ? styles.colorBtnActive : {}) }}
+              onClick={createGame}
+              disabled={loading}
+              style={styles.mainBtn}
             >
-              White
-            </button>
-            <button
-              onClick={() => setSelectedColor('random')}
-              style={{ ...styles.colorBtn, ...(selectedColor === 'random' ? styles.colorBtnActive : {}) }}
-            >
-              Random
-            </button>
-            <button
-              onClick={() => setSelectedColor('black')}
-              style={{ ...styles.colorBtn, ...(selectedColor === 'black' ? styles.colorBtnActive : {}) }}
-            >
-              Black
+              {loading ? 'Creating...' : 'Start Playing'}
+              <ChevronRight size={20} />
             </button>
           </div>
 
-          <button
-            onClick={createGame}
-            disabled={loading}
-            style={styles.mainBtn}
-          >
-            {loading ? 'Creating...' : 'Start Playing'}
-            <ChevronRight size={20} />
-          </button>
+          <div className="glass" style={{ ...styles.card, marginBottom: 0 }}>
+            <h2 style={styles.cardTitle}>Rooms</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1 }}>
+              {roomIds.map(id => {
+                const count = roomCounts[id] || 0;
+                const isFull = count >= 2;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => joinRoom(id)}
+                    style={{
+                      padding: '1rem',
+                      borderRadius: '12px',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      height: '100%',
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.4)'}
+                  >
+                    <span style={{ fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>Room {id}</span>
+                    <span style={{ fontSize: '0.9rem', color: count === 1 ? '#ffeb3b' : isFull ? '#f44336' : '#4caf50' }}>{Math.min(count, 2)}/2 Players</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
+
+
 
 
       </div>
@@ -102,7 +154,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   hero: {
     textAlign: 'center',
-    maxWidth: '600px',
+    maxWidth: '850px',
     width: '100%',
     display: 'flex',
     flexDirection: 'column',
@@ -128,6 +180,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '2.5rem',
     textAlign: 'left',
     marginBottom: '3rem',
+    display: 'flex',
+    flexDirection: 'column',
   },
   cardTitle: {
     fontSize: '1.8rem',
@@ -137,7 +191,8 @@ const styles: Record<string, React.CSSProperties> = {
   colorPicker: {
     display: 'flex',
     gap: '0.5rem',
-    marginBottom: '2rem',
+    marginTop: 'auto',
+    marginBottom: 'auto',
     background: 'rgba(0,0,0,0.3)',
     padding: '0.4rem',
     borderRadius: '12px',
@@ -160,6 +215,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--primary)',
     color: 'black',
     fontSize: '1.1rem',
+    marginTop: '2rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

@@ -64,7 +64,7 @@ interface UseChessGameProps {
 }
 
 // Ably
-let globalAblyClient: Realtime | null = null;
+import { getAblyClient } from '@/lib/ablyClient';
 
 export const useChessGame = ({ gameId }: UseChessGameProps) => {
   const [game, setGame] = useState(new Chess());
@@ -143,23 +143,7 @@ export const useChessGame = ({ gameId }: UseChessGameProps) => {
   useEffect(() => {
     let isMounted = true;
 
-    // Identity
-    let myClientId: string | null = null;
-    if (typeof window !== 'undefined') {
-      myClientId = localStorage.getItem('chess-user-id');
-      if (!myClientId) {
-        myClientId = 'user-' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('chess-user-id', myClientId);
-      }
-    }
-
-    if (!globalAblyClient) {
-      globalAblyClient = new Realtime({
-        authUrl: `/api/ably/auth?clientId=${myClientId}`,
-        clientId: myClientId || undefined
-      });
-    }
-    const client = globalAblyClient;
+    const client = getAblyClient();
     ablyClientRef.current = client;
 
     const gameChannel = client.channels.get(`chess-game-${gameId}`);
@@ -207,9 +191,9 @@ export const useChessGame = ({ gameId }: UseChessGameProps) => {
         const messages = resultPage.items;
 
         const chatHistory = messages
-          .filter(m => m.name === 'chat')
+          .filter((m: any) => m.name === 'chat')
           .reverse()
-          .map(m => m.data);
+          .map((m: any) => m.data);
 
         if (isMounted && chatHistory.length > 0) {
           setChatMessages(chatHistory);
@@ -264,7 +248,7 @@ export const useChessGame = ({ gameId }: UseChessGameProps) => {
       }
     });
 
-    gameChannel.subscribe('chat', (message) => {
+    gameChannel.subscribe('chat', (message: any) => {
       if (isMounted) setChatMessages((prev) => [...prev, message.data]);
     });
 
@@ -321,7 +305,7 @@ export const useChessGame = ({ gameId }: UseChessGameProps) => {
       }
     });
 
-    gameChannel.subscribe('takeback-request', (message) => {
+    gameChannel.subscribe('takeback-request', (message: any) => {
       if (message.clientId !== client.auth.clientId && isMounted) {
         setTakebackRequest(true);
       }
@@ -355,7 +339,7 @@ export const useChessGame = ({ gameId }: UseChessGameProps) => {
       }
     });
 
-    gameChannel.subscribe('draw-offer', (message) => {
+    gameChannel.subscribe('draw-offer', (message: any) => {
       if (message.clientId !== client.auth.clientId && isMounted) {
         setDrawRequest(true);
       }
@@ -382,19 +366,19 @@ export const useChessGame = ({ gameId }: UseChessGameProps) => {
       }
     });
 
-    gameChannel.subscribe('resign', (message) => {
+    gameChannel.subscribe('resign', (message: any) => {
       if (!isMounted) return;
       const { color } = message.data;
       setOutcome(`${color.charAt(0).toUpperCase() + color.slice(1)} Resigned!`);
     });
 
-    gameChannel.subscribe('rematch-offer', (message) => {
+    gameChannel.subscribe('rematch-offer', (message: any) => {
       if (message.clientId !== client.auth.clientId && isMounted) {
         setRematchRequest(true);
       }
     });
 
-    gameChannel.subscribe('rematch-response', (message) => {
+    gameChannel.subscribe('rematch-response', (message: any) => {
       const { accepted } = message.data;
       if (!isMounted) return;
 
